@@ -1,34 +1,15 @@
-:root {
-    /* Theme-Variablen */
-    --color-text: #222;
-    --color-muted: #666;
-    --color-bg: #fff;
-
-    --container-max: 960px;  /* optional: Standardbreite */
-    --spacing: 16px;
+/* src/styles/main.css */
+:root{
+    --color-text:#222; --color-muted:#666; --color-bg:#fff;
+    --container-max:960px; --spacing:16px;
 }
-
-* { box-sizing: border-box; }
-
-html, body, #app { height: 100%; }
-
-body {
-    margin: 0;
-    background: var(--color-bg);
-    color: var(--color-text);
+*{ box-sizing: border-box; }
+html,body,#app{ height:100%; }
+body{
+    margin:0; background:var(--color-bg); color:var(--color-text);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    line-height: 1.4;
+    line-height:1.4;
 }
-
-/* Links neutral; Komponenten entscheiden selbst über Farbe */
-a { color: inherit; text-decoration: none; }
-
-/* Medien brechen nicht aus dem Layout */
-img, svg, video { max-width: 100%; display: block; }
-
-/* Optional: einfache Container-Hilfe fürs Layout */
-.container {
-    max-width: var(--container-max);
-    margin-inline: auto;
-    padding-inline: var(--spacing);
-}
+a{ color:inherit; text-decoration:none; }
+img,svg,video{ max-width:100%; display:block; }
+.container{ max-width:var(--container-max); margin-inline:auto; padding-inline:var(--spacing); }

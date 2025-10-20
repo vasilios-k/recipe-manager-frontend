@@ -1,15 +1,14 @@
-const BASE = import.meta.env.VITE_API_BASE as string;
+export const API_BASE =
+    import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
-export async function http<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${BASE}${path}`, {
-        headers: { "Content-Type": "application/json" },
+export async function api(path: string, init?: RequestInit) {
+    const res = await fetch(`${API_BASE}${path}`, {
+        headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
         ...init,
     });
     if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`${res.status} ${res.statusText}: ${text}`);
+        throw new Error(text || res.statusText);
     }
-    // 204: kein Body
-    if (res.status === 204) return undefined as T;
-    return res.json() as Promise<T>;
+    return res.json();
 }
