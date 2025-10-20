@@ -1,55 +1,55 @@
 <!-- src/views/RecipeDetail.vue -->
 <template>
   <main class="container">
-    <p><RouterLink :to="{ name: 'home' }">← Zurück</RouterLink></p>
+    <p>
+      <RouterLink :to="{ name: 'home' }">← Zurück</RouterLink>
+    </p>
 
-    <section v-if="error" class="errorbox">
-      <h2>🤷‍♂️ Ups!</h2>
-      <p>{{ error }}</p>
-      <p class="actions">
-        <button type="button" @click="reload">Erneut versuchen</button>
-        <RouterLink :to="{ name: 'home' }" class="btn">Zur Übersicht</RouterLink>
-      </p>
-    </section>
-
-    <p v-else-if="loading">Lade…</p>
+    <section v-if="loading" class="muted">Lade…</section>
+    <section v-else-if="err" class="errorbox"><strong>Fehler:</strong> {{ err }}</section>
 
     <article v-else class="card">
-      <h1 class="title">{{ r.title }}</h1>
-      <p class="muted">
-        Gesamt: {{ r.totalMinutes }} min
-        <span v-if="r.baselineTag"> · {{ r.baselineTag }}</span>
-      </p>
+      <header class="head">
+        <h1>{{ recipe.title }}</h1>
+        <div class="actions">
+          <RouterLink class="btn" :to="{ name: 'recipe-edit', params: { id: recipe.id } }">Bearbeiten</RouterLink>
+        </div>
+      </header>
 
-      <p v-if="r.description">{{ r.description }}</p>
+      <p class="muted" v-if="recipe.description">{{ recipe.description }}</p>
 
-      <section v-if="r.categories?.length">
-        <h2>Kategorien</h2>
-        <ul class="chips">
-          <li v-for="c in r.categories" :key="c" class="chip">{{ c }}</li>
-        </ul>
-      </section>
+      <ul class="meta">
+        <li><strong>Vorbereitung:</strong> {{ recipe.prepMinutes }} min</li>
+        <li><strong>Kochen:</strong> {{ recipe.cookMinutes }} min</li>
+        <li><strong>Gesamt:</strong> {{ recipe.totalMinutes }} min</li>
+      </ul>
 
-      <section v-if="r.dietTags?.length">
-        <h2>Diet Tags</h2>
-        <ul class="chips">
-          <li v-for="t in r.dietTags" :key="t" class="chip">{{ t }}</li>
-        </ul>
-      </section>
+      <div v-if="recipe.baselineTag || recipe.dietTags.length" class="tags">
+        <span v-if="recipe.baselineTag" class="tag base">{{ recipe.baselineTag }}</span>
+        <span v-for="t in recipe.dietTags" :key="t" class="tag">{{ t }}</span>
+      </div>
 
-      <section v-if="r.ingredients?.length">
+      <div v-if="recipe.categories.length" class="cats">
+        <span v-for="c in recipe.categories" :key="c" class="chip">{{ c }}</span>
+      </div>
+
+      <hr />
+
+      <section>
         <h2>Zutaten</h2>
         <ul>
-          <li v-for="ing in r.ingredients" :key="ing.id">
-            {{ ing.amount }} {{ ing.unit }} · {{ ing.name }}
+          <li v-for="i in recipe.ingredients" :key="i.id">
+            {{ i.amount }} {{ i.unit }} {{ i.name }}
           </li>
         </ul>
       </section>
 
-      <section v-if="r.steps?.length">
+      <section>
         <h2>Schritte</h2>
         <ol>
-          <li v-for="s in r.steps" :key="s.id">{{ s.text }}</li>
+          <li v-for="s in sortedSteps" :key="s.id">
+            {{ s.text }}
+          </li>
         </ol>
       </section>
     </article>
@@ -57,77 +57,48 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
-import { getRecipe, type Recipe } from "@/services/api/recipes";
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { getRecipe, type Recipe } from '@/services/api/recipes'
 
-const route = useRoute();
-const id = Number(route.params.id);
+const route = useRoute()
+const id = Number(route.params.id)
 
-const loading = ref(true);
-const error = ref<string | null>(null);
-const r = ref<Recipe | null>(null);
+const loading = ref(true)
+const err = ref<string | null>(null)
+const recipe = ref<Recipe | null>(null)
 
-async function load() {
+const sortedSteps = computed(() =>
+    (recipe.value?.steps ?? []).slice().sort((a, b) => a.position - b.position),
+)
+
+onMounted(async () => {
   try {
-    r.value = await getRecipe(id);
+    recipe.value = await getRecipe(id)
   } catch (e: any) {
-    error.value = e?.message ?? "Fehler";
+    err.value = e?.message ?? 'Konnte Rezept nicht laden.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-}
-
-function reload() {
-  loading.value = true;
-  error.value = null;
-  load();
-}
-
-onMounted(load);
+})
 </script>
 
 <style scoped>
-.card {
-  border: 1px solid #eee;
-  border-radius: 16px;
-  padding: 20px;
-  background: #fff;
-  /* optional sichtprüfung:
-  box-shadow: 0 2px 16px rgba(0,0,0,.06);
-  */
-}
-.title { margin: 0 0 8px; }
-.muted { color: #666; margin: 0 0 16px; }
+.card { border: 1px solid #eee; border-radius: 16px; padding: 20px; background: #fff; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.actions { display: flex; gap: 8px; }
+.btn { border: 1px solid #ddd; background: #fff; border-radius: 10px; padding: 8px 12px; text-decoration: none; }
+.btn:hover { background: #f6f6f6; }
 
-section { margin-top: 20px; }
-h2 { font-size: 1.1rem; margin: 0 0 8px; }
+.meta { display: flex; gap: 16px; padding: 0; list-style: none; }
+.tags { display: flex; gap: 8px; margin: 8px 0; }
+.tag { background: #f2f2f2; border-radius: 999px; padding: 4px 10px; }
+.tag.base { background: #e8f7ff; }
 
-ul, ol { margin: 0; padding-left: 1.2rem; }
-ul { list-style: disc; }
-ol { list-style: decimal; }
+.cats { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 12px; }
+.chip { border: 1px solid #eee; border-radius: 999px; padding: 4px 10px; }
 
-.chips {
-  list-style: none; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 8px;
-}
-.chip {
-  background: #f5f5f5; border: 1px solid #eee;
-  border-radius: 999px; padding: 4px 10px; font-size: .9rem;
-}
-
-.errorbox {
-  border: 1px solid #f2c5c5;
-  background: #fff5f5;
-  color: #7a1f1f;
-  border-radius: 12px;
-  padding: 16px;
-  margin: 12px 0;
-}
-.actions { display: flex; gap: 12px; align-items: center; }
-button, .btn {
-  border: 1px solid #ddd; background: #fff; border-radius: 10px;
-  padding: 6px 10px; cursor: pointer; text-decoration: none;
-}
-button:hover, .btn:hover { background: #f6f6f6; }
+h2 { margin-top: 16px; }
+.muted { color: #666; }
+.errorbox { border: 1px solid #f2c5c5; background: #fff5f5; color: #7a1f1f; border-radius: 12px; padding: 12px; }
 </style>
