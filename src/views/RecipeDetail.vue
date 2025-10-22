@@ -1,16 +1,18 @@
-<!-- src/views/RecipeDetail.vue -->
 <template>
   <main class="container">
+    <!-- Zurück-Link zur Liste -->
     <p>
-      <RouterLink :to="{ name: 'home' }">← Zurück zur Liste</RouterLink>
+      <RouterLink :to="{ name: 'home' }">← Zurück</RouterLink>
     </p>
 
+    <!-- Lade-/Fehlerzustände -->
     <section v-if="loading" class="muted">Lade…</section>
 
     <section v-else-if="err" class="errorbox">
       <strong>Fehler:</strong> {{ err }}
     </section>
 
+    <!-- Detailkarte -->
     <section v-else class="card">
       <header class="header">
         <h1 class="title">{{ recipe.title }}</h1>
@@ -24,19 +26,22 @@
         </div>
       </header>
 
+      <!-- Beschreibung (optional) -->
       <p v-if="recipe.description">{{ recipe.description }}</p>
 
+      <!-- Zeiten + Gesamt -->
       <div class="meta">
         <span>Vorbereitung: {{ recipe.prepMinutes }} min</span>
         <span>Kochen: {{ recipe.cookMinutes }} min</span>
         <span><strong>Gesamt: {{ recipe.totalMinutes }} min</strong></span>
       </div>
 
+      <!-- Kategorien als Chips -->
       <div v-if="recipe.categories?.length" class="chips">
         <span class="chip chip--category" v-for="c in recipe.categories" :key="c">{{ c }}</span>
       </div>
 
-      <!-- Diet Tags -->
+      <!-- Diet Tags: Baseline hervorheben, Rest daneben -->
       <div v-if="recipe.baselineTag" class="chips">
         <span class="chip chip--baseline">{{ tagLabel(recipe.baselineTag) }}</span>
       </div>
@@ -48,6 +53,7 @@
 
       <hr />
 
+      <!-- Zutatenliste -->
       <section>
         <h2>Zutaten</h2>
         <ul class="bullets">
@@ -61,6 +67,7 @@
 
       <hr />
 
+      <!-- Schritteliste (geordnet) -->
       <section>
         <h2>Schritte</h2>
         <ol class="steps">
@@ -80,11 +87,15 @@ import { useRoute, RouterLink } from 'vue-router'
 import { getRecipe, type Recipe, type DietTag } from '@/services/api/recipes'
 import { tagLabel } from '@/services/ui/dietTagLabels'
 
+// ID aus der Route
 const route = useRoute()
 const id = Number(route.params.id)
 
+// Lade-/Fehlerzustände
 const loading = ref(true)
 const err = ref<string | null>(null)
+
+// Initial-Objekt, damit das Template sofort gebundene Felder hat
 const recipe = ref<Recipe>({
   id,
   title: '',
@@ -99,14 +110,16 @@ const recipe = ref<Recipe>({
   steps: [],
 })
 
+// Restliche Tags (ohne Baseline) berechnen
 const otherTags = computed<DietTag[]>(() =>
     (recipe.value.dietTags ?? []).filter(t => t !== recipe.value.baselineTag)
 )
 
+// Beim Mount Rezept laden (und Schritte defensiv sortieren)
 onMounted(async () => {
   try {
     const r = await getRecipe(id)
-    // Schritte defensiv sortieren (falls Backend schon sortiert, harmless)
+    // Falls Backend bereits sortiert, ist das harmless; sonst sorgt es für 1..n Reihenfolge.
     r.steps = [...(r.steps ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     recipe.value = r
   } catch (e: any) {

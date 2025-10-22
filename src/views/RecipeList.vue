@@ -1,3 +1,4 @@
+<!-- src/views/RecipeList.vue -->
 <template>
   <main class="container">
     <header class="list-header">
@@ -7,12 +8,13 @@
 
     <section class="toolbar">
       <input
-          v-model.trim="q"
+          v-model.trim="qInput"
           type="text"
           placeholder="Suche (Titel/Beschreibung/Kategorien)"
-          @keyup.enter="reload"
+          :disabled="loading"
       />
-      <button @click="reload">Suchen</button>
+      <button @click="applySearch" :disabled="loading">Suchen</button>
+      <button v-if="qInput" @click="resetSearch" :disabled="loading" class="ghost">Zurücksetzen</button>
     </section>
 
     <section v-if="loading" class="muted">Lade…</section>
@@ -22,9 +24,12 @@
     </section>
 
     <section v-else>
-      <div v-if="recipes.length === 0" class="muted">Keine Rezepte gefunden.</div>
+      <div class="muted" v-if="recipes.length === 0">
+        <template v-if="debouncedQ">Keine Treffer für „{{ debouncedQ }}“.</template>
+        <template v-else>Keine Rezepte gefunden.</template>
+      </div>
 
-      <ul class="cards">
+      <ul class="cards" v-else>
         <li v-for="r in recipes" :key="r.id" class="card">
           <header class="card-head">
             <RouterLink :to="{ name: 'recipe-detail', params: { id: r.id } }" class="title-link">
@@ -53,16 +58,17 @@
       </ul>
 
       <div class="pager" v-if="hasPaging">
-        <button :disabled="page === 0" @click="prevPage">Zurück</button>
-        <span>Seite {{ page + 1 }}</span>
-        <button :disabled="last" @click="nextPage">Weiter</button>
+        <button :disabled="page === 0 || loading" @click="prevPage">← Zurück</button>
+        <span>Seite {{ page + 1 }} / {{ totalPages ?? 1 }}</span>
+        <span v-if="totalElements != null" class="muted">({{ totalElements }} Treffer)</span>
+        <button :disabled="last || loading" @click="nextPage">Weiter →</button>
       </div>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { listRecipes, type Recipe } from '@/services/api/recipes'
 import { tagLabel } from '@/services/ui/dietTagLabels'
@@ -70,27 +76,55 @@ import { tagLabel } from '@/services/ui/dietTagLabels'
 const router = useRouter()
 const route = useRoute()
 
-const q = ref<string>((route.query.q as string) ?? '')
+// Query-State
+const qInput = ref<string>((route.query.q as string) ?? '')
+const debouncedQ = ref<string>(qInput.value)
 const page = ref<number>(Number(route.query.page ?? 0))
 const size = ref<number>(Number(route.query.size ?? 10))
-const sort = ref<string>((route.query.sort as string) ?? 'title,asc')
+const sort = ref<string>((route.query.sort as string) ?? 'id,desc') // default: neueste zuerst
 
+// Data
 const loading = ref(true)
 const err = ref<string | null>(null)
 const recipes = ref<Recipe[]>([])
-
 const totalElements = ref<number | null>(null)
 const totalPages = ref<number | null>(null)
 const last = ref<boolean>(false)
 
 const hasPaging = computed(() => totalPages.value != null)
 
+// Debounce der Suche (350 ms)
+let t: number | undefined
+watch(qInput, (val) => {
+  window.clearTimeout(t)
+  t = window.setTimeout(() => {
+    debouncedQ.value = val || ''
+    // bei neuer Suche zurück auf Seite 0
+    page.value = 0
+    reload()
+  }, 350)
+})
+
+// manuelles Anwenden (Enter/Click)
+function applySearch() {
+  window.clearTimeout(t)
+  debouncedQ.value = qInput.value || ''
+  page.value = 0
+  reload()
+}
+
+// Reset-Button
+function resetSearch() {
+  qInput.value = ''
+  applySearch()
+}
+
 async function reload() {
   loading.value = true
   err.value = null
   try {
     const res = await listRecipes({
-      q: q.value || undefined,
+      q: debouncedQ.value || undefined,
       page: Number.isFinite(page.value) ? page.value : undefined,
       size: Number.isFinite(size.value) ? size.value : undefined,
       sort: sort.value || undefined,
@@ -100,8 +134,9 @@ async function reload() {
     totalPages.value = (res as any).totalPages ?? null
     last.value = (res as any).last ?? false
 
+    // Query-Sync
     const qp: Record<string, any> = {}
-    if (q.value) qp.q = q.value
+    if (debouncedQ.value) qp.q = debouncedQ.value
     if (totalPages.value != null) {
       qp.page = page.value
       qp.size = size.value
@@ -114,8 +149,8 @@ async function reload() {
     loading.value = false
   }
 }
-function nextPage() { if (!last.value) { page.value += 1; reload() } }
-function prevPage() { if (page.value > 0) { page.value -= 1; reload() } }
+function nextPage() { if (!last.value && !loading.value) { page.value += 1; reload() } }
+function prevPage() { if (page.value > 0 && !loading.value) { page.value -= 1; reload() } }
 
 onMounted(reload)
 </script>
@@ -129,6 +164,7 @@ onMounted(reload)
 .toolbar input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 8px; font: inherit; }
 .toolbar button { border: 1px solid #ddd; background: #fff; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 .toolbar button:hover { background: #f6f6f6; }
+.toolbar .ghost { background: transparent; border-style: dashed; }
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .card { border: 1px solid #eee; border-radius: 16px; padding: 16px; background: #fff; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

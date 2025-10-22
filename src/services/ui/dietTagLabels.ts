@@ -1,5 +1,9 @@
+// src/services/ui/dietTagLabels.ts
 import type { DietTag } from "@/services/api/recipes";
 
+/**
+ * Mapping von Enum-Strings -> Anzeige-Labels (DE).
+ */
 export const DIET_TAG_LABEL: Record<DietTag, string> = {
     VEGAN: "Vegan",
     VEGETARIAN: "Vegetarisch",
@@ -34,8 +38,9 @@ export const DIET_TAG_LABEL: Record<DietTag, string> = {
     MEAL_PREP: "Meal Prep",
     SPICY: "Scharf",
     ALCOHOL_FREE: "Alkoholfrei",
-};
+} as const;
 
+/** Fallback: zeigt notfalls den Enum-String an. */
 export function tagLabel(tag: DietTag): string {
     return DIET_TAG_LABEL[tag] ?? tag;
 }
